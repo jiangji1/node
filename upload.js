@@ -1,6 +1,6 @@
 const fs = require('fs')
 const path = require('path')
-const ftp = require('ftp')
+const cc = require('ssh2-sftp-client')
 
 let dabao = path.resolve(__dirname, '../../../github/my-blog-web/dabao')
 
@@ -21,21 +21,22 @@ function readAll () {
       else paths.push(p)
     })
   }
-  return res
+  const reg = new RegExp(dabao.replace(/\\/g, '\\\\'), 'g')
+  return res.map(v => v.replace(reg, '').replace(/\\/g, '/'))
 }
 const allFiles = readAll()
-// console.log(allFiles)
+console.log(allFiles)
 
+// up.json保存着服务器ip，端口，用户名，密码
 const config = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'up.json')))
 
-const c = new ftp()
-c.on('ready', function () {
-  console.log(2)
-  c.list(function (e, list) {
-    console.log(1)
-    if (e) throw e
-    console.dir(list)
-    c.end()
-  })
-})
-c.connect(config)
+const c = new cc(config)
+
+async function f () {
+  let a
+  await c.connect(config)
+  a = await Promise.all(allFiles.map(v => c.put(path.resolve(dabao, v.slice(1)), `/usr/share/nginx/web/dabao${v}`) ))
+  console.log(a)
+  c.end()
+}
+f()
